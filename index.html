@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Pitch Performance Forecaster</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        /* Custom styles to complement Tailwind */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #4f46e5;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        .animated-item, .chart-bar-container {
+            transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+            transform: translateY(20px);
+            opacity: 0;
+        }
+        .animated-item.visible, .chart-bar-container.visible {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        /* Styles for tab interactivity */
+        .tab-link {
+            cursor: pointer;
+        }
+        .tab-link.disabled {
+            cursor: not-allowed;
+            color: #9ca3af; /* gray-400 */
+            pointer-events: none;
+        }
+        .tab-panel {
+            display: none;
+        }
+        .tab-panel.active {
+            display: block;
+        }
+        /* Chart bar animation */
+        .chart-bar {
+            transition: height 0.8s ease-out;
+            height: 0;
+        }
+        /* Slider thumb styling */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4f46e5;
+            cursor: pointer;
+            border-radius: 50%;
+            margin-top: -8px;
+        }
+        input[type=range]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #4f46e5;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body class="antialiased text-gray-800">
+
+    <div class="min-h-screen flex items-center justify-center p-4">
+        <main class="w-full max-w-4xl bg-white rounded-2xl shadow-2xl p-6 md:p-10 space-y-8">
+
+            <header class="text-center">
+                <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Performance Forecaster</h1>
+                <p class="mt-2 text-gray-600">Project revenue & ROAS for Hotel & Travel advertisers.</p>
+            </header>
+
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-6" aria-label="Tabs" id="tab-nav">
+                    <a id="sales-pitch-tab" class="tab-link active w-1/2 py-4 px-1 text-center border-b-2 border-indigo-500 text-indigo-600 font-medium text-sm" aria-current="page">
+                        Sales Pitch
+                    </a>
+                    <a id="dashboard-tab" class="tab-link disabled w-1/2 py-4 px-1 text-center border-b-2 border-transparent font-medium text-sm">
+                        Dashboard
+                    </a>
+                </nav>
+            </div>
+
+            <div id="sales-pitch-panel" class="tab-panel active">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                    <div>
+                        <label for="url" class="block text-sm font-medium text-gray-700">Your Landing Page URL</label>
+                        <input type="text" id="url" placeholder="https://www.your-hotel-site.com" class="mt-1 block w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                    </div>
+                     <div>
+                        <label for="competitorUrl" class="block text-sm font-medium text-gray-700">Competitor URL (Optional)</label>
+                        <input type="text" id="competitorUrl" placeholder="https://www.competitor-site.com" class="mt-1 block w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                    </div>
+                    <div>
+                        <label for="traffic" class="block text-sm font-medium text-gray-700">Estimated Monthly Clicks/Visits</label>
+                        <input type="number" id="traffic" placeholder="10000" class="mt-1 block w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                    </div>
+                    <div>
+                        <label for="budget" class="block text-sm font-medium text-gray-700">Campaign Budget ($)</label>
+                        <input type="number" id="budget" placeholder="5000" class="mt-1 block w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                    </div>
+                    <div class="col-span-1 md:col-span-2">
+                        <button id="analyzeBtn" class="w-full flex justify-center items-center gap-3 py-3 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform transform hover:scale-105">
+                            <span>Analyze Performance</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="results" class="mt-10">
+                    <div class="text-center text-gray-500 p-8 border-2 border-dashed border-gray-300 rounded-lg">
+                        <p>Your performance forecast will appear here.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="dashboard-panel" class="tab-panel">
+                <div id="dashboard-content" class="text-center text-gray-500 p-8 border-2 border-dashed border-gray-300 rounded-lg">
+                    <p>Run an analysis in the "Sales Pitch" tab to see your dashboard.</p>
+                </div>
+            </div>
+            
+        </main>
+    </div>
+
+    <script>
+        // DOM element references
+        const analyzeButton = document.getElementById('analyzeBtn');
+        const urlInput = document.getElementById('url');
+        const competitorUrlInput = document.getElementById('competitorUrl');
+        const trafficInput = document.getElementById('traffic');
+        const budgetInput = document.getElementById('budget');
+        
+        const resultsDiv = document.getElementById('results');
+        const dashboardContent = document.getElementById('dashboard-content');
+
+        const dashboardTab = document.getElementById('dashboard-tab');
+        const salesPitchTab = document.getElementById('sales-pitch-tab');
+        const dashboardPanel = document.getElementById('dashboard-panel');
+        const salesPitchPanel = document.getElementById('sales-pitch-panel');
+
+        const { jsPDF } = window.jspdf;
+        let analysisCache = {}; // Cache results for slider/report
+
+        // --- TAB SWITCHING LOGIC ---
+        function switchTab(targetTab) {
+            const tabs = [dashboardTab, salesPitchTab];
+            const panels = [dashboardPanel, salesPitchPanel];
+            
+            tabs.forEach(tab => {
+                tab.classList.remove('active', 'border-indigo-500', 'text-indigo-600');
+                tab.classList.add('border-transparent');
+            });
+
+            panels.forEach(panel => panel.classList.remove('active'));
+
+            if (targetTab === 'dashboard') {
+                dashboardTab.classList.add('active', 'border-indigo-500', 'text-indigo-600');
+                dashboardPanel.classList.add('active');
+            } else {
+                salesPitchTab.classList.add('active', 'border-indigo-500', 'text-indigo-600');
+                salesPitchPanel.classList.add('active');
+            }
+        }
+        dashboardTab.addEventListener('click', () => switchTab('dashboard'));
+        salesPitchTab.addEventListener('click', () => switchTab('sales-pitch'));
+
+
+        // --- MAIN ANALYSIS LOGIC ---
+        analyzeButton.addEventListener('click', async () => {
+            const url = urlInput.value;
+            const competitorUrl = competitorUrlInput.value;
+            const clicks = parseInt(trafficInput.value, 10);
+            const budget = parseFloat(budgetInput.value);
+
+            if (!url || !clicks || !budget || clicks <= 0 || budget <= 0) {
+                resultsDiv.innerHTML = `<div class="text-center text-red-600 bg-red-50 p-4 border border-red-200 rounded-lg">Please fill Your URL, Clicks, and Budget with valid, positive numbers.</div>`;
+                return;
+            }
+            
+            showLoadingState();
+            
+            try {
+                const [clientScore, competitorScore] = await Promise.all([
+                    getPageSpeed(url),
+                    competitorUrl ? getPageSpeed(competitorUrl) : Promise.resolve(null)
+                ]);
+
+                if (clientScore === null) {
+                    showErrorState();
+                    return;
+                }
+
+                const clientEstimates = calculateEstimates(clientScore, clicks, budget);
+                const competitorEstimates = competitorScore !== null ? calculateEstimates(competitorScore, clicks, budget) : null;
+                
+                analysisCache = { clientEstimates, competitorEstimates, clientScore, competitorScore, clicks, budget };
+
+                displayResults(analysisCache);
+                updateDashboard(clientEstimates);
+                dashboardTab.classList.remove('disabled');
+
+            } catch (error) {
+                console.error("Analysis failed:", error);
+                showErrorState();
+            }
+        });
+        
+        function animateIn(container) {
+            setTimeout(() => {
+                container.querySelectorAll('.animated-item').forEach((el, index) => {
+                    el.style.transitionDelay = `${index * 100}ms`;
+                    el.classList.add('visible');
+                });
+            }, 100);
+        }
+
+        function showLoadingState() {
+            const loadingHTML = `
+                <div class="flex flex-col items-center justify-center space-y-3 text-center text-gray-500 p-8 border-2 border-dashed border-gray-300 rounded-lg">
+                    <div class="loader"></div>
+                    <p class="font-medium">Analyzing page speed and forecasting performance...</p>
+                </div>`;
+            resultsDiv.innerHTML = loadingHTML;
+            dashboardContent.innerHTML = loadingHTML;
+        }
+
+        function showErrorState() {
+            const errorHTML = `
+                <div class="text-center text-red-600 bg-red-50 p-4 border border-red-200 rounded-lg">
+                    Could not analyze the URL. It may be invalid or blocking automated tools.
+                </div>`;
+            resultsDiv.innerHTML = errorHTML;
+            dashboardContent.innerHTML = `<div class="text-center text-gray-500 p-8 border-2 border-dashed border-gray-300 rounded-lg"><p>Analysis failed. Please try again.</p></div>`;
+        }
+
+        async function getPageSpeed(url) {
+            // SIMULATION for demo purposes.
+            console.log(`Simulating PageSpeed analysis for: ${url}`);
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            // Ensure even "bad" sites have a score for comparison
+            if (url.includes("competitor")) return Math.floor(Math.random() * (75 - 30 + 1)) + 30;
+            return Math.floor(Math.random() * (95 - 40 + 1)) + 40;
+        }
+        
+        function calculateEstimates(performanceScore, monthlyClicks, budget) {
+            const INDUSTRY_AVG_BOOKING_VALUE = 400; // $
+            const BASELINE_CR = 0.025;  // 2.5% Conversion Rate at a benchmark score of 90
+            
+            const performanceFactor = Math.min(performanceScore / 90, 1.15);
+            
+            const estimatedCR = BASELINE_CR * performanceFactor;
+            const estimatedConversions = monthlyClicks * estimatedCR;
+            const totalRevenue = estimatedConversions * INDUSTRY_AVG_BOOKING_VALUE;
+            const roasValue = totalRevenue - budget;
+            const cpa = estimatedConversions > 0 ? budget / estimatedConversions : 0;
+            
+            return {
+                conversions: estimatedConversions,
+                totalRevenue: totalRevenue,
+                adSpend: budget,
+                roasValue: roasValue,
+                avgBookingValue: INDUSTRY_AVG_BOOKING_VALUE,
+                estimatedCR: estimatedCR,
+                cpa: cpa
+            };
+        }
+
+        function displayResults({ clientEstimates, competitorEstimates, clientScore, competitorScore, clicks }) {
+            const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
+
+            // --- Your Performance HTML ---
+            const yourPerformanceHTML = `
+                <div class="animated-item">
+                    <h3 class="text-xl font-bold text-gray-900">Your Forecast</h3>
+                    <p class="text-sm text-gray-600 mb-4">Based on your page speed score of <span class="font-bold text-indigo-600">${clientScore}/100</span>.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="animated-item bg-gray-50 p-6 rounded-lg border text-center">
+                        <h3 class="text-sm font-medium text-gray-500">Est. Conversions</h3>
+                        <p class="mt-1 text-4xl font-bold text-indigo-600">${clientEstimates.conversions.toFixed(1)}</p>
+                        <p class="mt-2 text-xs text-gray-500">at ${(clientEstimates.estimatedCR * 100).toFixed(2)}% CVR</p>
+                    </div>
+                    <div class="animated-item bg-gray-50 p-6 rounded-lg border text-center">
+                        <h3 class="text-sm font-medium text-gray-500">Est. Revenue</h3>
+                        <p class="mt-1 text-4xl font-bold text-indigo-600">${formatter.format(clientEstimates.totalRevenue)}</p>
+                         <p class="mt-2 text-xs text-gray-500">from ${formatter.format(clientEstimates.avgBookingValue)} AOV</p>
+                    </div>
+                    <div class="animated-item bg-gray-50 p-6 rounded-lg border text-center">
+                        <h3 class="text-sm font-medium text-gray-500">Cost Per Acquisition</h3>
+                        <p class="mt-1 text-4xl font-bold text-indigo-600">${formatter.format(clientEstimates.cpa)}</p>
+                         <p class="mt-2 text-xs text-gray-500">to acquire a booking</p>
+                    </div>
+                </div>`;
+
+            // --- Competitor Analysis HTML ---
+            let competitorHTML = '';
+            if (competitorEstimates) {
+                const revenueDiff = clientEstimates.totalRevenue - competitorEstimates.totalRevenue;
+                const isWinning = revenueDiff >= 0;
+                competitorHTML = `
+                <div class="animated-item mt-8">
+                    <h3 class="text-xl font-bold text-gray-900">Competitive Analysis</h3>
+                     <p class="text-sm text-gray-600 mb-4">Competitor score: <span class="font-bold ${isWinning ? 'text-green-600' : 'text-red-600'}">${competitorScore}/100</span>. You are currently projected to generate <strong class="${isWinning ? 'text-green-600' : 'text-red-600'}">${formatter.format(Math.abs(revenueDiff))} ${isWinning ? 'more' : 'less'}</strong> revenue.</p>
+                </div>
+                <div class="animated-item w-full bg-gray-50 p-4 rounded-lg flex justify-around items-end gap-8 border" style="height: 180px;">
+                    <div class="w-1/3 flex flex-col items-center h-full justify-end">
+                        <p class="font-bold text-indigo-600 text-sm">${formatter.format(clientEstimates.totalRevenue)}</p>
+                        <div class="w-full bg-indigo-200 rounded-t-lg mt-1" style="height: ${(clientEstimates.totalRevenue / Math.max(clientEstimates.totalRevenue, competitorEstimates.totalRevenue)) * 80}%"></div>
+                        <p class="text-xs font-medium text-gray-600 mt-2">You</p>
+                    </div>
+                     <div class="w-1/3 flex flex-col items-center h-full justify-end">
+                        <p class="font-bold text-gray-600 text-sm">${formatter.format(competitorEstimates.totalRevenue)}</p>
+                        <div class="w-full bg-gray-300 rounded-t-lg mt-1" style="height: ${(competitorEstimates.totalRevenue / Math.max(clientEstimates.totalRevenue, competitorEstimates.totalRevenue)) * 80}%"></div>
+                        <p class="text-xs font-medium text-gray-600 mt-2">Competitor</p>
+                    </div>
+                </div>`;
+            }
+
+            // --- Improvement Scenario HTML ---
+            const improvementHTML = `
+                <div class="animated-item mt-8">
+                    <h3 class="text-xl font-bold text-gray-900">ROI: Improvement Scenario</h3>
+                    <p class="text-sm text-gray-600 mb-4">Use the slider to see how improving your PageSpeed score impacts revenue.</p>
+                    <div class="bg-gray-50 p-6 rounded-lg border">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="font-medium text-gray-700">Hypothetical Score: <span id="slider-score" class="font-bold text-indigo-600">${clientScore}</span>/100</span>
+                        </div>
+                        <input id="score-slider" type="range" min="${clientScore}" max="95" value="${clientScore}" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        <div class="mt-6 text-center">
+                            <h4 class="text-sm font-medium text-gray-500">New Projected Monthly Revenue</h4>
+                            <p id="improved-revenue" class="mt-1 text-4xl font-bold text-green-600">${formatter.format(clientEstimates.totalRevenue)}</p>
+                            <p id="revenue-gain" class="mt-1 font-semibold text-green-700">(+${formatter.format(0)})</p>
+                        </div>
+                    </div>
+                </div>`;
+                
+            // --- Sales Funnel HTML ---
+            const funnelHTML = `
+                <div class="animated-item mt-8">
+                    <h3 class="text-xl font-bold text-gray-900">Your Sales Funnel</h3>
+                    <div class="mt-4 space-y-2 flex flex-col items-center">
+                        <div class="w-full md:w-3/4 bg-blue-100 border border-blue-200 p-3 rounded-lg text-center">
+                            <p class="font-bold text-blue-800">${clicks.toLocaleString()} Clicks</p>
+                        </div>
+                        <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        <div class="w-full md:w-2/4 bg-indigo-100 border border-indigo-200 p-3 rounded-lg text-center">
+                            <p class="font-bold text-indigo-800">${clientEstimates.conversions.toFixed(1)} Conversions</p>
+                        </div>
+                        <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        <div class="w-full md:w-1/4 bg-green-100 border border-green-200 p-3 rounded-lg text-center">
+                            <p class="font-bold text-green-800">${formatter.format(clientEstimates.totalRevenue)} Revenue</p>
+                        </div>
+                    </div>
+                </div>`;
+            
+            // --- Report Button ---
+            const reportButtonHTML = `
+                <div class="animated-item mt-10 text-center">
+                    <button id="reportBtn" class="py-3 px-6 bg-gray-700 text-white font-semibold rounded-lg shadow-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-transform transform hover:scale-105">
+                        Generate PDF Report
+                    </button>
+                </div>
+            `;
+            
+            resultsDiv.innerHTML = `
+                <div id="report-content" class="bg-white p-6 space-y-6">
+                     ${yourPerformanceHTML}
+                     ${competitorHTML}
+                     ${improvementHTML}
+                     ${funnelHTML}
+                </div>
+                ${reportButtonHTML}`;
+
+            // Add event listeners for new interactive elements
+            document.getElementById('score-slider').addEventListener('input', (e) => {
+                const newScore = parseInt(e.target.value, 10);
+                const newEstimates = calculateEstimates(newScore, clicks, analysisCache.budget);
+                const gain = newEstimates.totalRevenue - clientEstimates.totalRevenue;
+
+                document.getElementById('slider-score').textContent = newScore;
+                document.getElementById('improved-revenue').textContent = formatter.format(newEstimates.totalRevenue);
+                document.getElementById('revenue-gain').textContent = `(+${formatter.format(gain)})`;
+            });
+            
+            document.getElementById('reportBtn').addEventListener('click', generateReport);
+            
+            animateIn(resultsDiv);
+        }
+
+        function updateDashboard(estimates) {
+            const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
+            
+            const maxVal = Math.max(estimates.totalRevenue, estimates.adSpend, 1); // Avoid division by zero
+            const revenueHeight = maxVal > 0 ? (estimates.totalRevenue / maxVal) * 100 : 0;
+            const spendHeight = maxVal > 0 ? (estimates.adSpend / maxVal) * 100 : 0;
+            
+            dashboardContent.innerHTML = `
+                <div class="space-y-8">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="animated-item bg-gray-50 p-6 rounded-lg border text-center">
+                            <h3 class="text-sm font-medium text-gray-500">Total Est. Revenue</h3>
+                            <p class="mt-1 text-3xl font-bold text-green-600">${formatter.format(estimates.totalRevenue)}</p>
+                        </div>
+                        <div class="animated-item bg-gray-50 p-6 rounded-lg border text-center">
+                            <h3 class="text-sm font-medium text-gray-500">Net Return (ROAS)</h3>
+                            <p class="mt-1 text-3xl font-bold ${estimates.roasValue >= 0 ? 'text-green-600' : 'text-red-600'}">${formatter.format(estimates.roasValue)}</p>
+                        </div>
+                        <div class="animated-item bg-gray-50 p-6 rounded-lg border text-center">
+                            <h3 class="text-sm font-medium text-gray-500">Total Conversions</h3>
+                            <p class="mt-1 text-3xl font-bold text-indigo-600">${estimates.conversions.toFixed(1)}</p>
+                        </div>
+                    </div>
+
+                    <div class="animated-item">
+                        <h3 class="text-lg font-semibold text-gray-900 text-center mb-4">Revenue vs. Ad Spend</h3>
+                        <div class="w-full bg-gray-50 p-4 rounded-lg border">
+                            <div class="h-56 flex justify-around items-end gap-8">
+                                <div class="w-1/3 flex flex-col justify-end items-center">
+                                     <p class="font-bold text-green-600 text-sm">${formatter.format(estimates.totalRevenue)}</p>
+                                     <div class="chart-bar w-3/4 bg-green-500 rounded-t-lg mt-1" style="height: ${revenueHeight}%"></div>
+                                </div>
+                                <div class="w-1/3 flex flex-col justify-end items-center">
+                                    <p class="font-bold text-red-600 text-sm">${formatter.format(estimates.adSpend)}</p>
+                                    <div class="chart-bar w-3/4 bg-red-500 rounded-t-lg mt-1" style="height: ${spendHeight}%"></div>
+                                </div>
+                            </div>
+                            <hr class="border-gray-200 my-2">
+                            <div class="flex justify-around gap-8">
+                                <p class="w-1/3 text-center text-xs font-medium text-gray-600">Revenue</p>
+                                <p class="w-1/3 text-center text-xs font-medium text-gray-600">Ad Spend</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            animateIn(dashboardContent);
+
+            // Animate chart bars after a slight delay
+            setTimeout(() => {
+                document.querySelectorAll('.chart-bar').forEach(bar => {
+                    const h = bar.style.height;
+                    bar.style.height = '0%'; // Start animation from 0
+                    setTimeout(() => { bar.style.height = h; }, 10);
+                });
+             }, 400); // must be > animation delay
+        }
+
+        async function generateReport() {
+            const reportButton = document.getElementById('reportBtn');
+            reportButton.textContent = 'Generating...';
+            reportButton.disabled = true;
+
+            const reportContent = document.getElementById('report-content');
+            
+            try {
+                const canvas = await html2canvas(reportContent, {
+                    scale: 2, // Higher scale for better quality
+                    useCORS: true 
+                });
+                
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF({
+                    orientation: 'p',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const imgProps = pdf.getImageProperties(imgData);
+                const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+                let heightLeft = imgHeight;
+                let position = 15; // top margin
+
+                // --- Add Header ---
+                pdf.setFontSize(18);
+                pdf.setTextColor(26, 32, 44);
+                pdf.text('Performance Forecast Report', pdfWidth / 2, 10, { align: 'center' });
+                
+                // --- Add Image of the Report Content ---
+                pdf.addImage(imgData, 'PNG', 10, position, pdfWidth - 20, imgHeight - 15);
+                heightLeft -= pdfHeight;
+
+                // --- Add Footer ---
+                const date = new Date().toLocaleDateString('en-US');
+                pdf.setFontSize(8);
+                pdf.setTextColor(150);
+                pdf.text(`Report generated on ${date}. | Your Company Name`, pdfWidth / 2, pdfHeight - 5, { align: 'center' });
+
+                pdf.save(`Performance_Forecast_${urlInput.value.replace(/^(?:https?:\/\/)?(?:www\.)?/i, "").split('/')[0]}.pdf`);
+                
+            } catch (error) {
+                console.error('Error generating PDF:', error);
+                alert('Could not generate the report. Please try again.');
+            } finally {
+                reportButton.textContent = 'Generate PDF Report';
+                reportButton.disabled = false;
+            }
+        }
+
+    </script>
+</body>
+</html>
+
+## call to action availability
+## Rooms available
+## ADR
+## competitive analysis
+## UI/UX designs
+## navigation designs
