@@ -196,7 +196,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             const competitorUrl = competitorUrlInput.value;
             const clicks = parseInt(trafficInput.value, 10);
             const budget = parseFloat(budgetInput.value);
-
+  window.dataLayer.push({
+    event: "rb_conversion",
+    conversion_type: "lead",
+    page_name: "sales_pitch",
+    value: 1
+  });
             if (!url || !clicks || !budget || clicks <= 0 || budget <= 0) {
                 resultsDiv.innerHTML = `<div class="text-center text-red-600 bg-red-50 p-4 border border-red-200 rounded-lg">Please fill Your URL, Clicks, and Budget with valid, positive numbers.</div>`;
                 return;
@@ -535,6 +540,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 ## competitive analysis
 ## UI/UX designs
 ## navigation designs
+
 
 
 
